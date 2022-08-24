@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { Readable } from "stream";
 
 import { stripe } from "../../services/stripe";
+import { saveSubscription } from "./_lib/manageSubscription";
 
 async function buffer(readable: Readable) {
   const chunks = [];
@@ -21,7 +22,11 @@ export const config = {
 };
 
 // events that really matter to the application
-const relevantEvents = new Set(["checkout.session.completed"]);
+const relevantEvents = new Set([
+  "checkout.session.completed", // session completed
+  "customer.subscription.updated", // customer updated subscription
+  "customer.subscription.deleted", // customer deleted subscription
+]);
 
 export default async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "POST") {
@@ -44,7 +49,38 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
 
     // if event is relevant
     if (relevantEvents.has(type)) {
-      console.log("Evento recebido", event);
+      try {
+        switch (type) {
+          case "checkout.session.completed":
+            const checkoutSession = event.data
+              .object as Stripe.Checkout.Session;
+
+            await saveSubscription(
+              checkoutSession.subscription.toString(),
+              checkoutSession.customer.toString(),
+              true
+            );
+
+            break;
+          case "customer.subscription.updated":
+          case "customer.subscription.deleted":
+            const subscription = event.data.object as Stripe.Subscription;
+
+            await saveSubscription(
+              subscription.id,
+              subscription.customer.toString(),
+              false
+            );
+
+            break;
+
+          default: {
+            throw new Error("Unhandled event.");
+          }
+        }
+      } catch (err) {
+        return res.json({ error: "Webhook handler failed." });
+      }
     }
 
     res.json({ received: true });
