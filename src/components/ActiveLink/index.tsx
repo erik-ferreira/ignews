@@ -13,7 +13,6 @@ export function ActiveLink({
   ...rest
 }: ActiveLinkProps) {
   const { asPath } = useRouter();
-  console.log(asPath);
 
   const className = asPath === rest.href ? activeClassName : "";
 
