@@ -1,6 +1,6 @@
 import Head from "next/head";
 import { RichText } from "prismic-dom";
-import { GetServerSideProps } from "next";
+import { GetStaticPaths, GetStaticProps } from "next";
 import { useSession } from "next-auth/react";
 import { getPrismicClient } from "../../../services/prismic";
 
@@ -55,14 +55,14 @@ export default function Post({ post }: PostProps) {
   );
 }
 
-export const getSaticPaths = () => {
+export const getStaticPaths: GetStaticPaths = async () => {
   return {
     paths: [],
     fallback: "blocking",
   };
 };
 
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
+export const getStaticProps: GetStaticProps = async (ctx) => {
   const { slug } = ctx.params;
 
   const prismic = getPrismicClient();
@@ -87,5 +87,6 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     props: {
       post,
     },
+    revalidate: 60 * 30, // 30 minutes
   };
 };
