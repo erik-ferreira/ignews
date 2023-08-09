@@ -30,6 +30,13 @@ describe("Header component", () => {
           image: "image.png",
         },
         expires: "fake-expires",
+        activeSubscription: {
+          data: {
+            id: "fake-id",
+            price_id: "fake-price-id",
+            status: "fake-status",
+          },
+        },
       },
       status: "authenticated",
       update: null,
