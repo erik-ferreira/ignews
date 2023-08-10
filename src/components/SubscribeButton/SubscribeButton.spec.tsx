@@ -3,9 +3,14 @@ import { useRouter } from "next/router"
 import { signIn, useSession } from "next-auth/react"
 import { fireEvent, render, screen } from "@testing-library/react"
 
+import { api } from "../../services/api"
+import { getStripeJS } from "../../services/stripe-js"
+
 import { SubscribeButton } from "."
 
 jest.mock("next-auth/react")
+jest.mock("../../services/api")
+jest.mock("../../services/stripe-js")
 jest.spyOn(require("next/router"), "useRouter").mockImplementation(() => {
   push: jest.fn()
 })
@@ -76,5 +81,44 @@ describe("SubscribeButton component", () => {
     fireEvent.click(subscriptionButton)
 
     expect(pushMock).toHaveBeenCalledWith("/posts")
+  })
+
+  it("redirect user to checkout when user is authenticated and has no subscription", async () => {
+    const useSessionMocked = mocked(useSession)
+    const apiPostMocked = mocked(api.post)
+    const getStripeJSMocked = mocked(getStripeJS)
+
+    useSessionMocked.mockReturnValueOnce({
+      data: {
+        user: {
+          name: "John Doe",
+          email: "john.doe@gmail.com",
+          image: "image.png",
+        },
+      },
+      status: "authenticated",
+    } as any)
+
+    apiPostMocked.mockResolvedValueOnce({
+      data: {
+        sessionId: "fake-session-id",
+      },
+    })
+
+    getStripeJSMocked.mockResolvedValueOnce({
+      redirectToCheckout: jest.fn().mockResolvedValueOnce({}),
+    } as any)
+
+    await api.post("/subscribe")
+    const stripe = await getStripeJS()
+    await stripe.redirectToCheckout({ sessionId: "fake-session-id" })
+
+    render(<SubscribeButton />)
+
+    expect(apiPostMocked).toHaveBeenCalledWith("/subscribe")
+    expect(getStripeJSMocked).toHaveBeenCalled()
+    expect(stripe.redirectToCheckout).toHaveBeenCalledWith({
+      sessionId: "fake-session-id",
+    })
   })
 })
